@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quizyatra - AI Quiz Generator</title>
+  <style>
+    /* --- Base & Theme Variables --- */
+    :root {
+      --primary-bg: #f0f4f8;
+      --secondary-bg: #ffffff;
+      --component-bg: #f8f9fa;
+      --text-color: #333;
+      --border-color: #dee2e6;
+      --shadow-color: rgba(0, 0, 0, 0.08);
+      --accent-color: #007bff;
+      --accent-hover: #0056b3;
+      --correct-color: #28a745;
+      --incorrect-color: #dc3545;
+      --skipped-color: #ffc107;
+      --bookmark-color: #a5a5a5;
+      --bookmarked-active-color: #ffb300;
+      --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body.dark-mode {
+      --primary-bg: #121212;
+      --secondary-bg: #1e1e1e;
+      --component-bg: #2a2a2e;
+      --text-color: #e0e0e0;
+      --border-color: #44474b;
+      --shadow-color: rgba(255, 255, 255, 0.08);
+      --accent-color: #4dabf7;
+      --accent-hover: #1c7ed6;
+    }
+
+    /* --- General Styles --- */
+    body {
+      font-family: var(--font-family);
+      background-color: var(--primary-bg);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column; 
+      justify-content: flex-start;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background-color: var(--secondary-bg);
+      border-radius: 10px;
+      box-shadow: 0 4px 15px var(--shadow-color);
+      overflow: hidden;
+      transition: background-color 0.3s;
+      margin-bottom: 20px;
+      padding: 2rem 2.5rem;
+    }
+    
+    .header {
+      background-color: var(--accent-color);
+      color: white;
+      padding: 15px 20px;
+      text-align: center;
+      font-size: 1.5em;
+      position: relative;
+      margin: -2rem -2.5rem 2rem -2.5rem; /* Adjust to fit padding */
+      border-radius: 10px 10px 0 0;
+    }
+    body.dark-mode .header { background-color: #1f1f1f; border-bottom: 1px solid var(--border-color); }
+    
+    .hidden { display: none !important; }
+
+    /* --- Welcome Screen --- */
+    #welcome-screen .welcome-buttons { display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem; }
+    .welcome-btn {
+        padding: 1.2rem; text-align: left; font-size: 1.1rem;
+        background-color: var(--component-bg); border: 1px solid var(--border-color);
+        color: var(--text-color); border-radius: 8px; cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .welcome-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 12px var(--shadow-color); border-color: var(--accent-color); }
+    .welcome-btn strong { display: block; color: var(--accent-color); margin-bottom: 0.4rem; font-size: 1.2rem; }
+    .welcome-btn span { font-size: 0.9rem; opacity: 0.8; }
+    
+    .api-key-link-container {
+      font-size: 0.9em;
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+    .api-key-link-container a {
+      color: var(--accent-color);
+      font-weight: bold;
+      text-decoration: none;
+    }
+    .api-key-link-container a:hover {
+      text-decoration: underline;
+    }
+
+    /* --- AI GENERATOR STYLES --- */
+    .input-group { margin-bottom: 1.5rem; }
+    .input-label { display: block; margin-bottom: 8px; font-weight: bold; }
+    .input-field, textarea, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      box-sizing: border-box;
+      background-color: var(--component-bg);
+      color: var(--text-color);
+      font-family: var(--font-family);
+      font-size: 1em;
+    }
+    textarea { min-height: 250px; resize: vertical; }
+    .api-key-section { display: flex; gap: 10px; align-items: center; }
+    #key-status { font-size: 0.9em; margin-top: 5px; height: 1.2em; }
+    .status-success { color: var(--correct-color); }
+    .status-error { color: var(--incorrect-color); }
+
+    .image-upload-area { border: 2px dashed var(--border-color); border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background-color 0.2s; }
+    .image-upload-area:hover { border-color: var(--accent-color); background-color: var(--component-bg); }
+    #image-preview-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 1rem; }
+    .image-preview { max-width: 150px; max-height: 150px; border-radius: 8px; object-fit: cover; }
+    #file-input { display: none; }
+    
+    .generator-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; margin: 1.5rem 0; }
+    .generator-options .input-group { margin-bottom: 0; }
+    
+    .generator-error {
+      background-color: #fbeee6;
+      color: var(--incorrect-color);
+      border: 1px solid var(--incorrect-color);
+      padding: 1rem;
+      border-radius: 5px;
+      margin: 1rem 0;
+      text-align: left;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+    body.dark-mode .generator-error {
+        background-color: #4a1c20;
+        color: #f1b0b7;
+        border-color: #dc3545;
+    }
+    
+    /* --- ENHANCED LOADER STYLES --- */
+    #ai-loader-container.fade-in {
+      animation: fade-in-scale 0.5s ease-out forwards;
+    }
+    @keyframes fade-in-scale {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    #ai-loader { 
+        display: none; 
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center; 
+        padding: 40px 20px;
+    }
+    #loader-welcome {
+        font-size: 1.5em;
+        font-weight: 500;
+        color: var(--text-color);
+        margin: 0 0 10px 0;
+    }
+    #loader-main-message {
+        font-size: 1.2em;
+        font-weight: 400;
+        color: var(--text-color);
+        opacity: 0.9;
+        margin: 0 0 2rem 0;
+    }
+    #loader-emoji {
+        font-size: 4em;
+        margin-bottom: 1.5rem;
+        display: inline-block;
+        animation: emoji-cycle 5s infinite steps(1, end);
+    }
+    @keyframes emoji-cycle {
+        0% { content: '🙂'; }
+        17% { content: '😐'; }
+        34% { content: '😮'; }
+        51% { content: '😅'; }
+        68% { content: '🧠'; }
+        85%, 100% { content: '✅'; }
+    }
+    #loader-emoji::before {
+        content: '🙂';
+        animation: emoji-cycle 5s infinite steps(1, end);
+    }
+    #please-wait {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-top: 10px;
+        position: relative;
+        color: var(--text-color);
+    }
+    #please-wait::after {
+        content: '.';
+        animation: ellipsis-anim 1.5s infinite;
+        position: absolute;
+        right: -30px; /* Adjust as needed */
+        width: 30px;
+        text-align: left;
+    }
+    @keyframes ellipsis-anim {
+        0% { content: '.'; }
+        33% { content: '..'; }
+        66%, 100% { content: '...'; }
+    }
+    #loader-ready-message {
+      font-size: 1em;
+      opacity: 0.8;
+      margin-top: 2rem;
+    }
+    #ai-loader-status {
+      margin-top: 1rem;
+      font-weight: bold;
+      color: var(--incorrect-color);
+    }
+    @media (max-width: 600px) {
+        #loader-emoji { font-size: 3em; }
+        #loader-main-message { font-size: 1em; }
+        #please-wait { font-size: 1.2em; }
+    }
+
+    /* --- QUIZ PLAYER (NEW UI) --- */
+    #quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px dashed var(--border-color); gap: 1rem; flex-wrap: wrap; }
+    #question-topic { font-weight: bold; color: var(--accent-color); font-size: 1.1rem; flex-shrink: 0; }
+    #progress { background-color: var(--accent-color); color: white; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold; white-space: nowrap; }
+    
+    /* --- NEW TRANSLATION CONTROLS --- */
+    #translation-controls { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    #translate-btn {
+        background: var(--component-bg); border: 1px solid var(--border-color); color: var(--text-color);
+        font-size: 1.1rem; /* Adjusted for text logo */
+        font-weight: bold;
+        cursor: pointer; border-radius: 20px; /* Pill shape */
+        width: auto;
+        padding: 8px 12px;
+        height: 40px;
+        display: flex; justify-content: center; align-items: center; transition: all 0.3s ease;
+    }
+    #translate-btn:hover { background-color: var(--primary-bg); transform: scale(1.05); }
+    #translate-btn.loading { animation: pulse 1.5s linear infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    #language-select {
+        padding: 8px; font-size: 0.9em; max-width: 150px;
+        transition: opacity 0.3s, transform 0.3s;
+    }
+    #language-select.hidden {
+        opacity: 0;
+        transform: scale(0.9);
+        pointer-events: none;
+        width: 0;
+        padding: 8px 0;
+        border: none;
+    }
+
+    /* --- ENHANCED TIMER STYLES --- */
+    #timer { 
+        font-weight: bold; background: var(--component-bg); padding: 8px 15px; border-radius: 25px; 
+        border: 2px solid var(--border-color); display: flex; align-items: center; gap: 10px; 
+        position: relative; width: auto; justify-content: center;
+    }
+    #timer-text { font-size: 1.4em; font-weight: bold; color: var(--accent-color); width: 60px; text-align: center; }
+    body.dark-mode #timer-text { color: var(--accent-color); }
+    .timer-face { font-size: 1.6rem; display: none; }
+    .timer-face.visible { display: inline-block; animation: face-pop 0.4s ease-out; }
+    @keyframes face-pop { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+    
+    #question-image-container { margin-bottom: 1rem; }
+    #question-image-container img { max-width: 100%; max-height: 400px; border-radius: 8px; display: block; margin: auto; border: 1px solid var(--border-color); }
+    #question-and-bookmark { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+    #question-text-container { flex-grow: 1; }
+    #question-text { font-size: 1.4em; font-weight: 500; margin: 0; }
+    #bookmark-btn { background: none; border: 1px solid var(--border-color); color: var(--bookmark-color); font-size: 1.5rem; cursor: pointer; border-radius: 50%; width: 44px; height: 44px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; }
+    #bookmark-btn:hover { background-color: var(--component-bg); transform: scale(1.1); }
+    #bookmark-btn.bookmarked { color: white; background-color: var(--bookmarked-active-color); border-color: var(--bookmarked-active-color); }
+    #statements-list p { margin: 0.5em 0; background: var(--component-bg); padding: 10px; border-radius: 5px; border-left: 3px solid var(--accent-color); }
+    .option { position: relative; border: 2px solid var(--border-color); padding: 12px 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: space-between; }
+    .option:hover:not(.disabled) { border-color: var(--accent-hover); background-color: var(--component-bg); }
+    .option.selected { border-color: var(--accent-color); background-color: #eaf5ff; }
+    body.dark-mode .option.selected { background-color: #36363c; }
+    .option.correct { border-color: var(--correct-color); background-color: #e9f7ef; color: #145a32; font-weight: bold; }
+    body.dark-mode .option.correct { background-color: #1c3c24; color: #a3d9b1; }
+    .option.incorrect { border-color: var(--incorrect-color); background-color: #fbeee6; color: #943126; font-weight: bold; }
+    body.dark-mode .option.incorrect { background-color: #4a1c20; color: #f1b0b7; }
+    .option.disabled { pointer-events: none; opacity: 0.8; }
+    .option-feedback { display: flex; align-items: center; gap: 10px; }
+    .feedback-icon, .user-choice-emoji { font-size: 1.5rem; }
+    .user-choice-emoji { display: none; } /* Hidden by default */
+    .user-choice-emoji.visible { display: inline-block; animation: pop-in 0.5s ease-out forwards; }
+    .feedback-icon { transform: scale(0); animation: pop-in 0.5s ease-out forwards; }
+    @keyframes pop-in { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+    #explanation-container { margin-top: 1.5rem; padding: 1rem; background-color: var(--component-bg); border-left: 5px solid var(--accent-color); border-radius: 5px; }
+    #explanation-container h4 { margin-top: 0; }
+    
+    /* --- NEW QUIZ ACTIONS LAYOUT --- */
+    #quiz-actions {
+        margin-top: 2rem;
+        display: flex;
+        flex-direction: column; /* Stack rows vertically */
+        gap: 0.75rem; /* Space between rows */
+        border-top: 1px solid var(--border-color);
+        padding-top: 1.5rem;
+    }
+    .quiz-actions-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    .quiz-actions-row-bottom {
+        justify-content: center; /* Center the submit button */
+    }
+
+    /* --- General Button Styles (MODIFIED FOR SMALLER SIZE) --- */
+    .btn {
+      background-color: var(--accent-color);
+      color: white;
+      padding: 8px 18px; /* Reduced padding */
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9em; /* Reduced font size */
+      font-weight: 600; /* Bolder font for readability */
+      text-align: center;
+      transition: all 0.3s;
+      margin: 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: auto;
+      flex-grow: 0;
+      min-width: 100px; /* Reduced min-width */
+    }
+    .btn-full-width { width: 100%; margin: 10px 0; flex-grow: 1; }
+    .btn:hover:not(:disabled) { background-color: var(--accent-hover); box-shadow: 0 4px 8px var(--shadow-color); transform: translateY(-2px); }
+    .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; opacity: 0.7; }
+    body.dark-mode .btn:disabled { background-color: #555; }
+    .btn-secondary { background-color: #6c757d; }
+    .btn-secondary:hover:not(:disabled) { background-color: #5a6268; }
+    .btn-danger { background-color: var(--incorrect-color); }
+    .btn-danger:hover:not(:disabled) { background-color: #c82333; }
+    #check-answer-btn { background-color: var(--correct-color); }
+    #check-answer-btn:hover:not(:disabled) { background-color: #218838; }
+    #skip-question-btn { background-color: var(--skipped-color); color: #212529;}
+    #skip-question-btn:hover:not(:disabled) { background-color: #e0a800; }
+
+    /* --- RESULTS & ANALYSIS --- */
+    #results-screen h2 { color: var(--correct-color); border-bottom-color: var(--correct-color); }
+    #score-summary { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 1.5rem; }
+    #quiz-summary-details { background-color: var(--component-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .summary-item { display: flex; flex-direction: column; }
+    .summary-label { font-size: 0.9em; color: #6c757d; font-weight: 500;}
+    .summary-value { font-size: 1.2em; font-weight: bold; }
+    .summary-value.remark { color: var(--accent-color); }
+    body.dark-mode .summary-label { color: #aaa; }
+    .result-item { border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px; background-color: var(--component-bg); }
+    .result-item .result-question { font-weight: bold; position: relative; }
+    .bookmark-indicator { color: var(--bookmarked-active-color); font-size: 1.2rem; position: absolute; top: 0; right: 0; opacity: 0; transition: opacity 0.3s; }
+    .bookmark-indicator.visible { opacity: 1; }
+    .result-options-list { margin-top: 1rem; padding-left: 0; list-style-type: none; }
+    .result-option { padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid transparent; }
+    .result-option.user-selected { border-color: var(--accent-color); }
+    .result-option.correct-answer { background-color: #d4edda; }
+    body.dark-mode .result-option.correct-answer { background-color: #1c3c24; }
+    .result-explanation { margin-top: 1rem; padding: 1rem; background-color: var(--primary-bg); border-left: 4px solid var(--accent-color); border-radius: 5px; font-size: 0.95em; }
+    .result-explanation h5 { margin-top: 0; }
+
+    .share-buttons { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; justify-content: center; align-items: center;}
+    .share-buttons-row { display: flex; gap: 10px; justify-content: center; width: 100%;}
+    #results-page-telegram-opener { width: 100%; max-width: 400px; }
+    .telegram-input-group { display: flex; gap: 10px; align-items: center; }
+    .telegram-input-group .input-field { flex-grow: 1; margin: 0; }
+    .telegram-input-group .btn { flex-grow: 0; padding: 12px 15px; margin: 0; }
+
+    /* --- MISC --- */
+    #theme-toggle-btn { position: absolute; top: 50%; transform: translateY(-50%); right: 20px; background: none; border: 1px solid rgba(255, 255, 255, 0.7); color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; transition: all 0.3s ease; display: flex; justify-content: center; align-items: center; }
+    #theme-toggle-btn:hover { background-color: rgba(255, 255, 255, 0.2); transform: translateY(-50%) rotate(15deg) scale(1.1); }
+  </style>
+</head>
+<body>
+
+<!-- ======================================= -->
+<!-- ========== WELCOME SCREEN =========== -->
+<!-- ======================================= -->
+<div class="container" id="welcome-container">
+    <div class="header">
+        <span>🚀 Quizyatra</span>
+        <button id="theme-toggle-btn" title="Toggle Dark/Light Mode">🌙</button>
+    </div>
+    <div id="welcome-screen">
+        <h2>How would you like to start your journey?</h2>
+        <div class="input-group">
+            <label for="api-key-input" class="input-label">Google AI API Key</label>
+            <div class="api-key-section">
+                <input type="password" id="api-key-input" class="input-field" placeholder="Enter your Gemini API Key">
+                <button id="save-key-btn" class="btn">Save</button>
+            </div>
+            <div id="key-status"></div>
+        </div>
+
+        <div class="api-key-link-container">
+            Don't have an API Key? 
+            <a href="https://aistudio.google.com/app/apikey" target="_blank">Get one from Google AI Studio</a>.
+        </div>
+        
+        <div class="welcome-buttons">
+            <button class="welcome-btn" id="show-topic-generator-btn">
+                <strong>Create from Topic (AI-Led)</strong>
+                <span>AI generates new questions from a topic and exam style.</span>
+            </button>
+            <button class="welcome-btn" id="show-content-generator-btn">
+                <strong>Create from Your Material (AI-Assisted)</strong>
+                <span>Paste text, upload notes, or provide existing questions for the AI to process.</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================= -->
+<!-- ====== TOPIC-BASED GENERATOR ======== -->
+<!-- ======================================= -->
+<div class="container hidden" id="topic-generator-container">
+    <div class="header"><span>🧠 Create from Topic</span></div>
+    <div id="topic-generator-screen">
+        <p>The AI will create questions from its own knowledge, tailored to your specifications.</p>
+        <div class="input-group">
+            <label for="topic-name-input" class="input-label">Topic Name</label>
+            <input type="text" id="topic-name-input" class="input-field" placeholder="e.g., The Indian Monsoon, Quantum Physics">
+        </div>
+        <div class="input-group">
+            <label for="subject-name-input" class="input-label">Subject</label>
+            <input type="text" id="subject-name-input" class="input-field" placeholder="e.g., Geography, Physics">
+        </div>
+        <div class="generator-options">
+            <div class="input-group"><label for="topic-num-questions-input" class="input-label"># of Questions</label><input type="number" id="topic-num-questions-input" class="input-field" value="5" min="1" max="20"></div>
+            <div class="input-group"><label for="topic-difficulty-select" class="input-label">Difficulty</label><select id="topic-difficulty-select" class="input-field"><option value="Easy">Easy</option><option value="Medium" selected>Medium</option><option value="Hard">Hard</option></select></div>
+            <div class="input-group"><label for="topic-exam-input" class="input-label">Target Exam</label><input type="text" id="topic-exam-input" class="input-field" placeholder="e.g., UPSC, NEET, SAT"></div>
+             <div class="input-group"><label for="topic-format-select" class="input-label">Format</label><select id="topic-format-select" class="input-field">
+                <option value="Standard MCQ">Standard MCQ</option>
+                <option value="Assertion-Reason">Assertion-Reason</option>
+                <option value="Statement-Based">Statement-Based (UPSC Style)</option>
+                <option value="True/False">True/False</option>
+                <option value="Mixed">Mixed (All Formats)</option>
+            </select></div>
+        </div>
+        <div id="topic-generator-error" class="generator-error hidden"></div>
+        <button id="generate-topic-quiz-btn" class="btn btn-full-width">Generate AI Quiz ✨</button>
+        <button id="back-to-welcome-btn-1" class="btn btn-full-width btn-secondary">Back to Main Menu</button>
+    </div>
+</div>
+
+<!-- ======================================= -->
+<!-- ====== CONTENT-BASED GENERATOR ====== -->
+<!-- ======================================= -->
+<div class="container hidden" id="content-generator-container">
+    <div class="header"><span>📝 Create from Your Material</span></div>
+    <div id="content-generator-screen">
+         <p>Paste any text below. The AI will intelligently decide whether to create new questions from your notes or parse a pre-written quiz you provide.</p>
+        <div class="input-group">
+            <label for="content-text-input" class="input-label">Paste Your Text Here</label>
+            <textarea id="content-text-input" class="input-field" placeholder="Paste an article, your study notes, or even a list of questions and answers..."></textarea>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Or Upload Images</label>
+            <div id="image-upload-area" class="image-upload-area">
+                <p>Click to upload one or more images of notes or textbook pages.</p>
+                <input type="file" id="file-input" accept="image/*" multiple>
+                <div id="image-preview-container"></div>
+            </div>
+        </div>
+        <!-- NEW: PDF UPLOAD SECTION -->
+        <div class="input-group">
+            <label class="input-label">Or Upload a PDF</label>
+            <button id="upload-pdf-btn" class="btn btn-secondary" style="width: 100%;">Click to select a PDF file</button>
+            <input type="file" id="pdf-file-input" accept="application/pdf" class="hidden">
+            
+            <div id="pdf-controls-container" class="hidden" style="margin-top: 1rem; padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--primary-bg);">
+                <p><strong>Selected PDF:</strong> <span id="pdf-file-name" style="font-weight: normal;"></span></p>
+                <p><strong>Total Pages:</strong> <span id="pdf-total-pages" style="font-weight: normal;"></span></p>
+                
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
+                    <div class="input-group" style="margin: 0; flex-grow: 1; min-width: 120px;">
+                        <label for="pdf-page-from" class="input-label" style="font-size: 0.9em;">From Page</label>
+                        <input type="number" id="pdf-page-from" class="input-field" min="1">
+                    </div>
+                    <div class="input-group" style="margin: 0; flex-grow: 1; min-width: 120px;">
+                        <label for="pdf-page-to" class="input-label" style="font-size: 0.9em;">To Page</label>
+                        <input type="number" id="pdf-page-to" class="input-field" min="1">
+                    </div>
+                    <div class="input-group" style="margin: 0; display: flex; align-items: center; padding-bottom: 10px;">
+                        <input type="checkbox" id="pdf-entire-doc" style="width: auto; margin-right: 8px; transform: scale(1.2);">
+                        <label for="pdf-entire-doc">Process Entire PDF</label>
+                    </div>
+                </div>
+
+                <button id="process-pdf-btn" class="btn">Extract Text from PDF</button>
+                <label style="margin-left: 15px; cursor: pointer;">
+                    <input type="checkbox" id="pdf-force-ocr" style="margin-right: 5px;">
+                    Force OCR (for scanned documents, can be slow)
+                </label>
+                <p id="pdf-status" style="margin-top: 1rem; font-weight: bold; color: var(--accent-color);"></p>
+            </div>
+        </div>
+        <hr style="border: 0; border-top: 2px dashed var(--border-color); margin: 2rem 0;">
+
+        <div class="generator-options">
+            <div class="input-group"><label for="content-num-questions-input" class="input-label"># of Questions</label><input type="number" id="content-num-questions-input" class="input-field" value="5" min="1" max="20"></div>
+            <div class="input-group"><label for="content-difficulty-select" class="input-label">Difficulty</label><select id="content-difficulty-select" class="input-field"><option value="Easy">Easy</option><option value="Medium" selected>Medium</option><option value="Hard">Hard</option></select></div>
+            <div class="input-group"><label for="content-exam-input" class="input-label">Target Exam</label><input type="text" id="content-exam-input" class="input-field" placeholder="e.g., UPSC, NEET, SAT"></div>
+            <div class="input-group">
+                <label for="content-format-select" class="input-label">Format</label>
+                <select id="content-format-select" class="input-field">
+                    <option value="Standard MCQ" selected>Standard MCQ</option>
+                    <option value="Assertion-Reason">Assertion-Reason</option>
+                    <option value="Statement-Based">Statement-Based</option>
+                    <option value="Image-Based">Image-Based Question</option>
+                    <option value="True/False">True/False</option>
+                    <option value="Fill in the Blank">Fill in the Blank</option>
+                    <option value="Mixed">Mixed (All Formats)</option>
+                </select>
+            </div>
+        </div>
+        <div id="content-generator-error" class="generator-error hidden"></div>
+        <button id="generate-content-quiz-btn" class="btn btn-full-width">Process with AI 📝</button>
+        <button id="back-to-welcome-btn-2" class="btn btn-full-width btn-secondary">Back to Main Menu</button>
+    </div>
+</div>
+
+<!-- ======================================= -->
+<!-- ============ AI LOADER ================ -->
+<!-- ======================================= -->
+<div class="container hidden" id="ai-loader-container">
+    <div id="ai-loader">
+        <h3 id="loader-welcome">👋 Welcome to Quizyatra!</h3>
+        <p id="loader-main-message">We're crafting your perfect quiz journey...</p>
+        <div id="loader-emoji"></div>
+        <div id="please-wait">Please wait</div>
+        <p id="ai-loader-status"></p>
+        <p id="loader-ready-message">This won’t take long — get ready to test your brainpower!</p>
+    </div>
+</div>
+
+<!-- ======================================= -->
+<!-- ========= QUIZ PLAYER SCREEN ========== -->
+<!-- ======================================= -->
+<div class="container hidden" id="quiz-player-container">
+    <div id="quiz-header">
+        <span id="question-topic">Topic</span>
+        <div id="translation-controls">
+            <button id="translate-btn" title="Translate Question">A/अ</button>
+            <select id="language-select" class="input-field hidden">
+                <option value="en" selected>English (Original)</option>
+                <option value="es">Español (Spanish)</option>
+                <option value="hi">हिन्दी (Hindi)</option>
+                <option value="fr">Français (French)</option>
+                <option value="de">Deutsch (German)</option>
+                <option value="ja">日本語 (Japanese)</option>
+                <option value="ru">Русский (Russian)</option>
+                <option value="ar">العربية (Arabic)</option>
+                <option value="bn">বাংলা (Bengali)</option>
+                <option value="pt">Português (Portuguese)</option>
+            </select>
+        </div>
+        <span id="timer">
+            <span class="timer-face" id="face-happy">😊</span>
+            <span class="timer-face" id="face-worried">😟</span>
+            <span class="timer-face" id="face-sad">😥</span>
+            <span class="timer-face" id="face-crying">😭</span>
+            <span id="timer-text">00:00</span>
+        </span>
+        <span id="progress">Question 1 / 3</span>
+    </div>
+    <div id="question-image-container" class="hidden"></div>
+    <div id="question-and-bookmark">
+        <div id="question-text-container">
+            <p id="question-text">This is where the question text will go.</p>
+            <div id="statements-list"></div>
+        </div>
+        <button id="bookmark-btn" title="Bookmark Question">⭐</button>
+    </div>
+    <div id="options-container"></div>
+    <div id="explanation-container" class="hidden">
+        <h4>Explanation</h4>
+        <p id="explanation-text"></p>
+    </div>
+    <div id="quiz-actions"></div>
+</div>
+
+
+<!-- ======================================= -->
+<!-- =========== RESULTS SCREEN ============ -->
+<!-- ======================================= -->
+<div class="container hidden" id="results-screen">
+    <div class="header"><h2>🏆 Quiz Results</h2></div>
+    <div id="score-summary">You scored 2 out of 3!</div>
+    <div id="quiz-summary-details"></div>
+    <div class="share-buttons">
+        <div class="share-buttons-row">
+            <button id="share-pdf-btn" class="btn">📄 Download PDF</button>
+            <button id="copy-bookmarks-btn" class="btn" style="background-color: var(--bookmarked-active-color);">📋 Copy Bookmarked</button>
+            <button id="share-whatsapp-btn" class="btn" style="background-color: #25D366;">💬 Share on WhatsApp</button>
+        </div>
+        <div id="results-page-telegram-opener">
+             <div class="telegram-input-group">
+                <input type="text" id="results-page-telegram-input" class="input-field" placeholder="Open a Telegram Channel...">
+                <button id="results-page-open-telegram-btn" class="btn btn-secondary">Open</button>
+            </div>
+        </div>
+    </div>
+    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 2rem 0;">
+    <h3>Review Your Answers:</h3>
+    <div id="results-review"></div>
+    <button id="restart-quiz-btn" class="btn btn-full-width">🔄 Take Another Quiz</button>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- PDF & OCR Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script>
+// Configure the PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- DOM ELEMENT DICTIONARY ---
+    const screens = {
+        welcome: document.getElementById('welcome-container'),
+        topicGenerator: document.getElementById('topic-generator-container'),
+        contentGenerator: document.getElementById('content-generator-container'),
+        loader: document.getElementById('ai-loader-container'),
+        player: document.getElementById('quiz-player-container'),
+        results: document.getElementById('results-screen'),
+    };
+
+    const elements = {
+        // Welcome & Global
+        apiKeyInput: document.getElementById('api-key-input'),
+        saveKeyBtn: document.getElementById('save-key-btn'),
+        keyStatus: document.getElementById('key-status'),
+        showTopicGeneratorBtn: document.getElementById('show-topic-generator-btn'),
+        showContentGeneratorBtn: document.getElementById('show-content-generator-btn'),
+        themeToggleBtn: document.getElementById('theme-toggle-btn'),
+        backToWelcomeBtns: [
+            document.getElementById('back-to-welcome-btn-1'),
+            document.getElementById('back-to-welcome-btn-2'),
+        ],
+
+        // Topic Generator
+        topicNameInput: document.getElementById('topic-name-input'),
+        subjectNameInput: document.getElementById('subject-name-input'),
+        topicNumQuestionsInput: document.getElementById('topic-num-questions-input'),
+        topicDifficultySelect: document.getElementById('topic-difficulty-select'),
+        topicExamInput: document.getElementById('topic-exam-input'),
+        topicFormatSelect: document.getElementById('topic-format-select'),
+        generateTopicQuizBtn: document.getElementById('generate-topic-quiz-btn'),
+        topicGeneratorError: document.getElementById('topic-generator-error'),
+
+        // Content Generator
+        contentTextInput: document.getElementById('content-text-input'),
+        imageUploadArea: document.getElementById('image-upload-area'),
+        fileInput: document.getElementById('file-input'),
+        imagePreviewContainer: document.getElementById('image-preview-container'),
+        contentNumQuestionsInput: document.getElementById('content-num-questions-input'),
+        contentDifficultySelect: document.getElementById('content-difficulty-select'),
+        contentExamInput: document.getElementById('content-exam-input'),
+        contentFormatSelect: document.getElementById('content-format-select'),
+        generateContentQuizBtn: document.getElementById('generate-content-quiz-btn'),
+        contentGeneratorError: document.getElementById('content-generator-error'),
+        
+        // PDF Uploader Elements
+        uploadPdfBtn: document.getElementById('upload-pdf-btn'),
+        pdfFileInput: document.getElementById('pdf-file-input'),
+        pdfControlsContainer: document.getElementById('pdf-controls-container'),
+        pdfFileName: document.getElementById('pdf-file-name'),
+        pdfTotalPages: document.getElementById('pdf-total-pages'),
+        pdfPageFrom: document.getElementById('pdf-page-from'),
+        pdfPageTo: document.getElementById('pdf-page-to'),
+        pdfEntireDoc: document.getElementById('pdf-entire-doc'),
+        processPdfBtn: document.getElementById('process-pdf-btn'),
+        pdfForceOcr: document.getElementById('pdf-force-ocr'),
+        pdfStatus: document.getElementById('pdf-status'),
+        
+        // Loader
+        aiLoader: document.getElementById('ai-loader'),
+        aiLoaderContainer: document.getElementById('ai-loader-container'),
+        loaderStatus: document.getElementById('ai-loader-status'),
+        
+        // Quiz Player
+        questionTopic: document.getElementById('question-topic'),
+        progress: document.getElementById('progress'),
+        timerText: document.getElementById('timer-text'),
+        faceHappy: document.getElementById('face-happy'),
+        faceWorried: document.getElementById('face-worried'),
+        faceSad: document.getElementById('face-sad'),
+        faceCrying: document.getElementById('face-crying'),
+        questionImageContainer: document.getElementById('question-image-container'),
+        bookmarkBtn: document.getElementById('bookmark-btn'),
+        questionText: document.getElementById('question-text'),
+        statementsList: document.getElementById('statements-list'),
+        optionsContainer: document.getElementById('options-container'),
+        explanationContainer: document.getElementById('explanation-container'),
+        explanationText: document.getElementById('explanation-text'),
+        quizActions: document.getElementById('quiz-actions'),
+        translateBtn: document.getElementById('translate-btn'),
+        languageSelect: document.getElementById('language-select'),
+        
+        // Results
+        scoreSummary: document.getElementById('score-summary'),
+        quizSummaryDetails: document.getElementById('quiz-summary-details'),
+        resultsReview: document.getElementById('results-review'),
+        restartBtn: document.getElementById('restart-quiz-btn'),
+        sharePdfBtn: document.getElementById('share-pdf-btn'),
+        copyBookmarksBtn: document.getElementById('copy-bookmarks-btn'),
+        shareWhatsAppBtn: document.getElementById('share-whatsapp-btn'),
+        resultsPageTelegramInput: document.getElementById('results-page-telegram-input'),
+        resultsPageOpenTelegramBtn: document.getElementById('results-page-open-telegram-btn'),
+    };
+
+    // --- STATE MANAGEMENT ---
+    let quizData = [];
+    let originalQuizData = [];
+    let translationCache = {}; // E.g., { 'hi': [translatedQuiz], 'fr': [translatedQuiz] }
+    let currentQuestionIndex = 0;
+    let userAnswers = [];
+    let bookmarkedQuestions = new Set();
+    let selectedOptionIndex = null;
+    let multipleImageData = [];
+    let timerId = null;
+    let quizStartTime = null;
+    let questionStartTime = null;
+    let pdfDoc = null; // For holding the loaded PDF document object
+
+    // --- INITIALIZATION ---
+    loadApiKey();
+    applyInitialTheme();
+    setupEventListeners();
+    showScreen('welcome');
+
+    // --- SCREEN NAVIGATION ---
+    function showScreen(screenName) {
+        Object.values(screens).forEach(screen => {
+            screen.classList.add('hidden');
+            screen.classList.remove('fade-in'); 
+        });
+        if (screens[screenName]) {
+            screens[screenName].classList.remove('hidden');
+            if(screenName === 'loader') {
+                 elements.aiLoader.style.display = 'flex';
+                 elements.aiLoaderContainer.classList.add('fade-in');
+            }
+        }
+    }
+
+    // --- EVENT LISTENERS ---
+    function setupEventListeners() {
+        // Navigation
+        elements.showTopicGeneratorBtn.addEventListener('click', () => showScreen('topicGenerator'));
+        elements.showContentGeneratorBtn.addEventListener('click', () => showScreen('contentGenerator'));
+        elements.backToWelcomeBtns.forEach(btn => btn.addEventListener('click', () => showScreen('welcome')));
+
+        // Generators
+        elements.saveKeyBtn.addEventListener('click', saveApiKey);
+        elements.generateTopicQuizBtn.addEventListener('click', () => generateAIQuiz('topic'));
+        elements.generateContentQuizBtn.addEventListener('click', () => generateAIQuiz('content'));
+
+        // Content Generator UI
+        elements.imageUploadArea.addEventListener('click', () => elements.fileInput.click());
+        elements.fileInput.addEventListener('change', handleMultipleImageUploads);
+        
+        // PDF Uploader Listeners
+        elements.uploadPdfBtn.addEventListener('click', () => elements.pdfFileInput.click());
+        elements.pdfFileInput.addEventListener('change', handlePdfUpload);
+        elements.processPdfBtn.addEventListener('click', processPdf);
+        elements.pdfEntireDoc.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            elements.pdfPageFrom.disabled = isChecked;
+            elements.pdfPageTo.disabled = isChecked;
+        });
+
+        // Player & Results
+        elements.bookmarkBtn.addEventListener('click', handleBookmark);
+        elements.restartBtn.addEventListener('click', restartQuiz);
+        elements.sharePdfBtn.addEventListener('click', generatePDF);
+        elements.copyBookmarksBtn.addEventListener('click', copyBookmarks);
+        elements.shareWhatsAppBtn.addEventListener('click', shareOnWhatsApp);
+        elements.themeToggleBtn.addEventListener('click', toggleTheme);
+        elements.resultsPageOpenTelegramBtn.addEventListener('click', () => openTelegram(elements.resultsPageTelegramInput));
+        
+        // Translation Listeners
+        elements.translateBtn.addEventListener('click', () => {
+            elements.languageSelect.classList.toggle('hidden');
+        });
+        elements.languageSelect.addEventListener('change', handleLanguageChange);
+    }
+    
+    // --- PDF & OCR PROCESSING ---
+
+    async function handlePdfUpload(event) {
+        const file = event.target.files[0];
+        if (!file || file.type !== 'application/pdf') return;
+
+        elements.pdfControlsContainer.classList.remove('hidden');
+        elements.pdfStatus.textContent = 'Loading PDF...';
+        elements.processPdfBtn.disabled = true;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const typedarray = new Uint8Array(e.target.result);
+                pdfDoc = await pdfjsLib.getDocument({ data: typedarray }).promise;
+                
+                elements.pdfFileName.textContent = file.name;
+                elements.pdfTotalPages.textContent = pdfDoc.numPages;
+                elements.pdfPageFrom.value = 1;
+                elements.pdfPageTo.value = pdfDoc.numPages;
+                elements.pdfPageFrom.max = pdfDoc.numPages;
+                elements.pdfPageTo.max = pdfDoc.numPages;
+                elements.pdfEntireDoc.checked = false;
+                elements.pdfPageFrom.disabled = false;
+                elements.pdfPageTo.disabled = false;
+                
+                elements.pdfStatus.textContent = '';
+                elements.processPdfBtn.disabled = false;
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                elements.pdfStatus.textContent = `Error: ${error.message}`;
+                elements.pdfControlsContainer.classList.add('hidden');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    async function processPdf() {
+        if (!pdfDoc) {
+            alert('No PDF document loaded.');
+            return;
+        }
+
+        const useOcr = elements.pdfForceOcr.checked;
+        const entireDoc = elements.pdfEntireDoc.checked;
+        
+        let startPage = parseInt(elements.pdfPageFrom.value, 10);
+        let endPage = parseInt(elements.pdfPageTo.value, 10);
+
+        if (entireDoc) {
+            startPage = 1;
+            endPage = pdfDoc.numPages;
+        }
+
+        if (isNaN(startPage) || isNaN(endPage) || startPage < 1 || endPage > pdfDoc.numPages || startPage > endPage) {
+            alert('Invalid page range selected.');
+            return;
+        }
+
+        if (useOcr && !confirm(`Forcing OCR can be slow, especially for ${endPage - startPage + 1} pages. Are you sure you want to continue?`)) {
+            return;
+        }
+        
+        elements.processPdfBtn.disabled = true;
+        elements.contentTextInput.value = ''; // Clear previous content
+
+        try {
+            let fullText = '';
+            if (useOcr) {
+                fullText = await extractTextWithOcr(startPage, endPage);
+            } else {
+                fullText = await extractTextDirectly(startPage, endPage);
+            }
+            elements.contentTextInput.value = fullText;
+            elements.pdfStatus.textContent = `✅ Success! Extracted text from ${endPage - startPage + 1} page(s) and placed it in the textbox above.`;
+        } catch (error) {
+            console.error('Error processing PDF:', error);
+            elements.pdfStatus.textContent = `Error: ${error.message}`;
+        } finally {
+            elements.processPdfBtn.disabled = false;
+            // Don't hide controls, user might want to re-process with different settings
+        }
+    }
+
+    async function extractTextDirectly(start, end) {
+        let allText = '';
+        for (let i = start; i <= end; i++) {
+            elements.pdfStatus.textContent = `Processing page ${i} of ${end} (Direct Mode)...`;
+            const page = await pdfDoc.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            allText += pageText + '\n\n'; // Add space between pages
+        }
+        return allText;
+    }
+
+    async function extractTextWithOcr(start, end) {
+        let allText = '';
+        const worker = await Tesseract.createWorker('eng', 1, {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    const progress = (m.progress * 100).toFixed(0);
+                    elements.pdfStatus.textContent = `OCR on page ${currentOcrPage} of ${end}: ${progress}%...`;
+                }
+            }
+        });
+        
+        let currentOcrPage = start;
+        for (let i = start; i <= end; i++) {
+            currentOcrPage = i;
+            elements.pdfStatus.textContent = `Rendering page ${i} of ${end} for OCR...`;
+            const page = await pdfDoc.getPage(i);
+            const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR accuracy
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            
+            const { data: { text } } = await worker.recognize(canvas);
+            allText += text + '\n\n';
+        }
+
+        await worker.terminate();
+        return allText;
+    }
+
+
+    function displayGeneratorError(message, containerId) {
+        const errorContainer = document.getElementById(containerId);
+        if (errorContainer) {
+            errorContainer.innerHTML = message;
+            errorContainer.classList.remove('hidden');
+        } else { alert(message); }
+    }
+    
+    // --- FEATURE FUNCTIONS ---
+    function openTelegram(inputElement) {
+        const rawUsername = inputElement.value.trim();
+        if (!rawUsername) { alert('Please enter a Telegram username (without the "@").'); return; }
+        const cleanUsername = rawUsername.replace(/^@/, '');
+        const url = `https://t.me/${cleanUsername}`;
+        window.open(url, '_blank');
+    }
+    
+    function shareOnWhatsApp() {
+        const totalQuestions = originalQuizData.length; if (totalQuestions === 0) return;
+        const correctCount = userAnswers.filter(ans => ans.isCorrect).length;
+        const incorrectCount = userAnswers.filter(ans => ans.status === 'answered' && !ans.isCorrect).length;
+        const skippedCount = userAnswers.filter(ans => ans.status === 'skipped' || ans.status === 'unseen').length;
+        const percentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+        let remark = "Needs Improvement";
+        if (percentage >= 90) remark = "Excellent! ✨"; else if (percentage >= 75) remark = "Great Job! 👍"; else if (percentage >= 50) remark = "Good Effort! 😊";
+        const quizEndTime = new Date();
+        const timeDiff = quizStartTime ? Math.round((quizEndTime - quizStartTime) / 1000) : 0;
+        const minutes = Math.floor(timeDiff / 60); const seconds = timeDiff % 60;
+        const timeTaken = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        const topic = originalQuizData[0]?.topic || 'a custom quiz';
+        const difficulty = originalQuizData[0]?.difficulty || 'N/A';
+        const message = [`*🏆 My Quiz Results! 🏆*`, ``, `I just took a quiz on *${topic}*! Here's how I did:`, ``, `*Performance:* ${remark}`, `*Score:* ${correctCount} / ${totalQuestions} (${percentage.toFixed(0)}%)`, ``, `*📊 Breakdown:*`, `✔️ Correct: ${correctCount}`, `❌ Incorrect: ${incorrectCount}`, `⏭️ Skipped: ${skippedCount}`, ``, `*⚙️ Quiz Details:*`, `🕒 Time Taken: ${timeTaken}`, `💪 Difficulty: ${difficulty}`, ``, `Think you can do better? Create your own quiz with Quizyatra!`].join('\n');
+        const encodedMessage = encodeURIComponent(message);
+        const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+        window.open(whatsappUrl, '_blank');
+    }
+
+    // --- THEME & API KEY ---
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        localStorage.setItem('quizTheme', isDarkMode ? 'dark' : 'light');
+        elements.themeToggleBtn.textContent = isDarkMode ? '☀️' : '🌙';
+    }
+
+    function applyInitialTheme() {
+        if (localStorage.getItem('quizTheme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            elements.themeToggleBtn.textContent = '☀️';
+        }
+    }
+
+    function loadApiKey() {
+        const savedKey = localStorage.getItem('geminiApiKey');
+        if (savedKey) {
+            elements.apiKeyInput.value = savedKey;
+            elements.keyStatus.textContent = 'API Key loaded from local storage.';
+            elements.keyStatus.className = 'status-success';
+        } else {
+            elements.keyStatus.textContent = 'Please enter your Google Gemini API Key.';
+            elements.keyStatus.className = 'status-error';
+        }
+    }
+
+    function saveApiKey() {
+        const key = elements.apiKeyInput.value.trim();
+        if (key) {
+            localStorage.setItem('geminiApiKey', key);
+            elements.keyStatus.textContent = 'API Key saved successfully!';
+            elements.keyStatus.className = 'status-success';
+        } else {
+            elements.keyStatus.textContent = 'API Key cannot be empty.';
+            elements.keyStatus.className = 'status-error';
+        }
+    }
+
+    // --- IMAGE HANDLING ---
+    function handleMultipleImageUploads(event) {
+        multipleImageData = [];
+        elements.imagePreviewContainer.innerHTML = '';
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) continue;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                multipleImageData.push({ mimeType: file.type, data: e.target.result.split(',')[1] });
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'image-preview';
+                elements.imagePreviewContainer.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // --- AI QUIZ GENERATION & VALIDATION ---
+    async function generateAIQuiz(generatorType) {
+        const apiKey = elements.apiKeyInput.value.trim();
+        if (!apiKey) {
+            alert('Please enter and save your API Key first.');
+            return;
+        }
+
+        let promptConfig, originalScreen, errorContainerId;
+        if (generatorType === 'topic') {
+            promptConfig = { type: 'topic', topic: elements.topicNameInput.value, subject: elements.subjectNameInput.value, numQuestions: elements.topicNumQuestionsInput.value, difficulty: elements.topicDifficultySelect.value, targetExam: elements.topicExamInput.value, format: elements.topicFormatSelect.value };
+            originalScreen = 'topicGenerator';
+            errorContainerId = 'topic-generator-error';
+            if (!promptConfig.topic || !promptConfig.subject) {
+                alert("Please fill in Topic and Subject fields.");
+                return;
+            }
+        } else {
+            promptConfig = { type: 'content', text: elements.contentTextInput.value, images: multipleImageData, numQuestions: elements.contentNumQuestionsInput.value, difficulty: elements.contentDifficultySelect.value, targetExam: elements.contentExamInput.value, format: elements.contentFormatSelect.value };
+            originalScreen = 'contentGenerator';
+            errorContainerId = 'content-generator-error';
+            if (!promptConfig.text && promptConfig.images.length === 0) {
+                alert("Please provide some content (text or an image).");
+                return;
+            }
+        }
+
+        document.getElementById(errorContainerId)?.classList.add('hidden');
+        elements.loaderStatus.textContent = '';
+        showScreen('loader');
+
+        const maxRetries = 3;
+        const initialRetryDelay = 2000;
+        let lastError = null;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const prompt = buildAIPrompt(promptConfig);
+                const model = "gemini-1.5-flash-latest";
+                const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const promptParts = [{ text: prompt }];
+                if (promptConfig.images?.length > 0) {
+                    promptConfig.images.forEach(img => promptParts.push({ inline_data: img }));
+                }
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: promptParts }] })
+                });
+
+                if (!response.ok) {
+                    const error = new Error(`API request failed with status ${response.status}`);
+                    error.status = response.status;
+                    error.response = response;
+                    throw error;
+                }
+
+                const data = await response.json();
+                const rawText = data.candidates[0]?.content?.parts[0]?.text || "";
+                const jsonMatch = rawText.match(/```json\n([\s\S]*?)\n```/);
+                const jsonString = jsonMatch ? jsonMatch[1] : rawText.substring(rawText.indexOf('['), rawText.lastIndexOf(']') + 1);
+
+                let parsedQuiz;
+                try {
+                    parsedQuiz = JSON.parse(jsonString);
+                } catch (e) {
+                    throw new Error("The AI returned a response in an invalid format. Please try again.");
+                }
+
+                const validatedQuiz = validateQuizData(parsedQuiz);
+                if (validatedQuiz.length === 0) {
+                    throw new Error("The AI failed to generate a valid quiz. Please adjust your query and try again.");
+                }
+
+                quizData = validatedQuiz;
+
+                if (promptConfig.type === 'content' && multipleImageData.length > 0) {
+                    const imageDataUrl = `data:${multipleImageData[0].mimeType};base64,${multipleImageData[0].data}`;
+                    quizData.forEach(q => q.image === true && (q.image = imageDataUrl));
+                }
+                startQuiz();
+                return; // Success!
+
+            } catch (error) {
+                lastError = error;
+                
+                const isRetriable =
+                    error instanceof TypeError ||
+                    error.status === 503 ||
+                    // Don't retry on 429, we'll handle that with batching
+                    error.message.includes("invalid format") ||
+                    error.message.includes("failed to generate");
+
+                if (isRetriable && attempt < maxRetries) {
+                    const delay = initialRetryDelay * Math.pow(2, attempt);
+                    elements.loaderStatus.textContent = `An issue occurred. Retrying in ${delay / 1000}s...`;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        console.error("Quiz Generation Error (Final):", lastError);
+        let finalErrorMessage;
+
+        if (lastError instanceof TypeError) {
+            finalErrorMessage = "<strong>Network Error</strong>: Could not connect to the API. Check your internet connection.";
+        } else if (lastError.response) {
+            let detailedMessage = `<strong>Error (Status ${lastError.status})</strong>: `;
+            const errorData = await lastError.response.json().catch(() => null);
+            const messageFromServer = errorData?.error?.message || 'No additional details from server.';
+            switch (lastError.status) {
+                case 400: detailedMessage += "Bad Request. The AI couldn't process the input."; break;
+                case 401: case 403: detailedMessage += "Authentication Failed. Please verify your API Key."; break;
+                case 429: detailedMessage += "Quota Exceeded or Rate Limited. Please try again later."; break;
+                case 500: case 503: detailedMessage += "Server Error. The AI service is temporarily unavailable."; break;
+                default: detailedMessage += "An unexpected API error occurred.";
+            }
+            detailedMessage += `<br><small>Details: ${messageFromServer}</small>`;
+            finalErrorMessage = detailedMessage;
+        } else {
+            finalErrorMessage = lastError ? lastError.message : "An unknown error occurred.";
+        }
+
+        showScreen(originalScreen);
+        displayGeneratorError(finalErrorMessage, errorContainerId);
+    }
+
+    function validateQuizData(data) {
+        if (!Array.isArray(data)) return [];
+        return data.filter(q => 
+            q && typeof q.question === 'string' && q.question.length > 0 &&
+            Array.isArray(q.options) && q.options.length >= 2 &&
+            typeof q.correctAnswerIndex === 'number' && q.correctAnswerIndex >= 0 && q.correctAnswerIndex < q.options.length &&
+            typeof q.explanation === 'string' && q.explanation.length > 0
+        );
+    }
+
+    function buildAIPrompt(config) {
+        const createMixedFormatPlan = (num) => {
+            const coreFormats = ['Standard MCQ', 'Statement-Based', 'Assertion-Reason', 'True/False'];
+            let plan = Array.from({ length: num }, (_, i) => coreFormats[i % coreFormats.length]);
+            for (let i = plan.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [plan[i], plan[j]] = [plan[j], plan[i]]; }
+            return plan.map((format, index) => `${index + 1}. ${format}`).join('\n');
+        };
+        const schema = `- "question": string\n- "options": Array<string>\n- "correctAnswerIndex": number\n- "explanation": string\n- "topic": string\n- "difficulty": string ("${config.difficulty}")\n- "statements": Array<string> (REQUIRED for 'Statement-Based' and 'Assertion-Reason')`;
+        const executionPlan = config.format === 'Mixed' ? `**Execution Plan:** Follow this exact, ordered plan:\n${createMixedFormatPlan(config.numQuestions)}` : `**Execution Plan:** Generate ${config.numQuestions} questions, all in the '${config.format}' format.`;
+        const mainInstruction = config.type === 'topic' ? `**Task:** Generate a new quiz from your internal knowledge.\n**Request:** Topic: ${config.topic}, Subject: ${config.subject}, Exam: ${config.targetExam}, Difficulty: ${config.difficulty}` : `**Task:** Analyze user-provided content. If it's a quiz, PARSE it. If notes, GENERATE new questions.\n**Request (for generation):** Exam: ${config.targetExam}, Difficulty: ${config.difficulty}\n**Content:**\n${config.text || "(No text provided, rely on images.)"}\n${config.images.length > 0 ? "An image has also been provided." : ""}`;
+        return `You are a Quiz Architect AI. Your goal is to produce a perfect, valid JSON array of quiz questions.
+**PROCEDURE:**
+1.  **Goal & Plan:**
+    ${mainInstruction}
+    ${executionPlan}
+2.  **Schema (NON-NEGOTIABLE):** Every object in the final JSON array MUST conform to this schema.
+    ${schema}
+3.  **Format Rules:**
+    - 'Statement-Based': MUST have a "statements" array.
+    - 'Assertion-Reason': "question" is Assertion(A). "statements" MUST be a single-item array for the Reason(R).
+    - Other formats: "statements" array must be empty or omitted.
+4.  **Self-Correction (CRITICAL):** For each question, verify:
+    [ ] Has all REQUIRED schema fields?
+    [ ] 'options' array has at least two strings?
+    [ ] 'correctAnswerIndex' is a valid number?
+    [ ] 'statements' array is correct for the format?
+    [ ] The 'question' text does not leak the answer?
+    **If a question fails ANY check, DISCARD it and generate a new one.** Only perfect questions are allowed.
+5.  **Final Output:** Produce ONLY the raw JSON array. No other text or markdown.
+Now, begin.`;
+    }
+    
+    // --- QUIZ PLAYER LOGIC ---
+    function startQuiz() {
+        showScreen('player');
+        quizStartTime = new Date();
+        currentQuestionIndex = 0;
+        userAnswers = quizData.map(() => ({ selected: null, isCorrect: null, status: 'unseen' }));
+        bookmarkedQuestions.clear();
+        
+        originalQuizData = JSON.parse(JSON.stringify(quizData));
+        translationCache = {};
+        
+        elements.languageSelect.value = 'en';
+        elements.languageSelect.classList.add('hidden');
+
+        loadQuestion(0);
+    }
+
+    function loadQuestion(index) {
+        if (index < 0 || index >= originalQuizData.length) return;
+        
+        currentQuestionIndex = index;
+        selectedOptionIndex = null;
+        
+        elements.languageSelect.value = 'en';
+        elements.languageSelect.classList.add('hidden');
+        
+        const question = originalQuizData[currentQuestionIndex];
+        const answer = userAnswers[currentQuestionIndex];
+
+        if (answer.status === 'answered') {
+            clearInterval(timerId);
+            elements.timerText.textContent = "--:--";
+            [elements.faceHappy, elements.faceWorried, elements.faceSad, elements.faceCrying]
+                .forEach(face => face.classList.remove('visible'));
+        } else {
+            resetAndStartQuestionTimer();
+        }
+        
+        updateQuestionUI(question);
+        updateOptionsAndExplanationState();
+        updateQuizActions();
+    }
+    
+    function updateQuestionUI(questionContent) {
+        elements.questionTopic.textContent = questionContent.topic || "General";
+        elements.progress.textContent = `Question ${currentQuestionIndex + 1} / ${originalQuizData.length}`;
+        elements.questionText.textContent = questionContent.question;
+        elements.bookmarkBtn.classList.toggle('bookmarked', bookmarkedQuestions.has(currentQuestionIndex));
+        
+        elements.questionImageContainer.classList.add('hidden');
+        elements.questionImageContainer.innerHTML = '';
+        elements.statementsList.innerHTML = '';
+
+        if (questionContent.image && typeof questionContent.image === 'string') {
+            elements.questionImageContainer.innerHTML = `<img src="${questionContent.image}" alt="Question Image">`;
+            elements.questionImageContainer.classList.remove('hidden');
+        }
+        if (questionContent.statements && questionContent.statements.length > 0) {
+            elements.statementsList.innerHTML = questionContent.statements.map(stmt => `<p>${stmt}</p>`).join('');
+        }
+        
+        elements.optionsContainer.innerHTML = '';
+        questionContent.options.forEach((optionText, i) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option';
+            optionDiv.dataset.index = i;
+            optionDiv.innerHTML = `<span class="option-text">${optionText}</span><div class="option-feedback"><span class="user-choice-emoji"></span><span class="feedback-icon"></span></div>`;
+            optionDiv.addEventListener('click', () => selectOption(i));
+            elements.optionsContainer.appendChild(optionDiv);
+        });
+        
+        if(userAnswers[currentQuestionIndex].status === 'answered') {
+            elements.explanationText.innerHTML = `<p>${questionContent.explanation}</p>`;
+        }
+    }
+
+    function updateOptionsAndExplanationState() {
+        const answer = userAnswers[currentQuestionIndex];
+        const question = originalQuizData[currentQuestionIndex];
+
+        document.querySelectorAll('.option').forEach((optionDiv, i) => {
+             if (answer.status === 'answered') {
+                optionDiv.classList.add('disabled');
+                if (i === question.correctAnswerIndex) {
+                    optionDiv.classList.add('correct');
+                    optionDiv.querySelector('.feedback-icon').textContent = '✔️';
+                }
+                if (i === answer.selected) {
+                    optionDiv.classList.add('selected');
+                    if (i !== question.correctAnswerIndex) {
+                        optionDiv.classList.add('incorrect');
+                         optionDiv.querySelector('.feedback-icon').textContent = '❌';
+                    }
+                    const userChoiceEmoji = optionDiv.querySelector('.user-choice-emoji');
+                    userChoiceEmoji.textContent = answer.isCorrect ? '🥳' : '🤔';
+                    userChoiceEmoji.classList.add('visible');
+                }
+            }
+        });
+
+        if (answer.status === 'answered') {
+            elements.explanationContainer.classList.remove('hidden');
+        } else {
+            elements.explanationContainer.classList.add('hidden');
+        }
+    }
+    
+    function updateQuizActions() {
+        elements.quizActions.innerHTML = '';
+        const topRow = document.createElement('div'); topRow.className = 'quiz-actions-row';
+        const middleRow = document.createElement('div'); middleRow.className = 'quiz-actions-row';
+        const bottomRow = document.createElement('div'); bottomRow.className = 'quiz-actions-row quiz-actions-row-bottom';
+
+        if (userAnswers[currentQuestionIndex].status !== 'answered') {
+            const checkBtn = document.createElement('button');
+            checkBtn.id = 'check-answer-btn'; checkBtn.className = 'btn';
+            checkBtn.textContent = 'Check Answer'; checkBtn.disabled = selectedOptionIndex === null;
+            checkBtn.addEventListener('click', checkAnswer);
+            topRow.appendChild(checkBtn);
+        } else { topRow.appendChild(document.createElement('span')); }
+
+        const nextBtn = document.createElement('button');
+        nextBtn.id = 'next-question-btn'; nextBtn.className = 'btn';
+        nextBtn.textContent = 'Next Question'; nextBtn.disabled = currentQuestionIndex === originalQuizData.length - 1;
+        nextBtn.addEventListener('click', () => loadQuestion(currentQuestionIndex + 1));
+        topRow.appendChild(nextBtn);
+        
+        const prevBtn = document.createElement('button');
+        prevBtn.id = 'prev-question-btn'; prevBtn.className = 'btn btn-secondary';
+        prevBtn.textContent = 'Previous'; prevBtn.disabled = currentQuestionIndex === 0;
+        prevBtn.addEventListener('click', () => loadQuestion(currentQuestionIndex - 1));
+        middleRow.appendChild(prevBtn);
+
+        if (userAnswers[currentQuestionIndex].status !== 'answered') {
+            const skipBtn = document.createElement('button');
+            skipBtn.id = 'skip-question-btn'; skipBtn.className = 'btn';
+            skipBtn.textContent = 'Skip'; skipBtn.addEventListener('click', handleSkip);
+            middleRow.appendChild(skipBtn);
+        } else { middleRow.appendChild(document.createElement('span')); }
+
+        const submitBtn = document.createElement('button');
+        submitBtn.id = 'submit-quiz-btn'; submitBtn.className = 'btn btn-danger btn-full-width';
+        submitBtn.textContent = 'Submit Quiz'; submitBtn.addEventListener('click', forceSubmitQuiz);
+        bottomRow.appendChild(submitBtn);
+
+        elements.quizActions.appendChild(topRow);
+        elements.quizActions.appendChild(middleRow);
+        elements.quizActions.appendChild(bottomRow);
+    }
+    
+    function resetAndStartQuestionTimer() {
+        clearInterval(timerId);
+        questionStartTime = new Date();
+        const emojiSequence = [elements.faceHappy, elements.faceWorried, elements.faceSad, elements.faceCrying];
+        const updateTimerDisplay = () => {
+            if (!questionStartTime) return;
+            const elapsedTime = Math.round((new Date() - questionStartTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            elements.timerText.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const emojiIntervalIndex = Math.floor(elapsedTime / 15);
+            const currentEmoji = emojiSequence[emojiIntervalIndex % emojiSequence.length];
+            if (currentEmoji && !currentEmoji.classList.contains('visible')) {
+                emojiSequence.forEach(face => face.classList.remove('visible'));
+                currentEmoji.classList.add('visible');
+            }
+        };
+        updateTimerDisplay(); 
+        timerId = setInterval(updateTimerDisplay, 1000);
+    }
+    
+    function handleBookmark() {
+        bookmarkedQuestions.has(currentQuestionIndex) ? bookmarkedQuestions.delete(currentQuestionIndex) : bookmarkedQuestions.add(currentQuestionIndex);
+        elements.bookmarkBtn.classList.toggle('bookmarked');
+    }
+
+    function handleSkip() {
+        if (userAnswers[currentQuestionIndex].status === 'unseen') {
+            userAnswers[currentQuestionIndex].status = 'skipped';
+        }
+        if (currentQuestionIndex < originalQuizData.length - 1) {
+            loadQuestion(currentQuestionIndex + 1);
+        } else {
+            const firstUnanswered = userAnswers.findIndex(ans => ans.status !== 'answered');
+            if (firstUnanswered !== -1) loadQuestion(firstUnanswered);
+            else forceSubmitQuiz(); 
+        }
+    }
+
+    function forceSubmitQuiz() {
+        if (confirm('Are you sure you want to end the quiz now? All unanswered questions will be marked as skipped.')) {
+            clearInterval(timerId);
+            userAnswers.forEach((answer, index) => { 
+                if (answer.status === 'unseen') userAnswers[index].status = 'skipped';
+            });
+            showResults();
+        }
+    }
+
+    function selectOption(index) {
+        if (userAnswers[currentQuestionIndex].status === 'answered') return;
+        selectedOptionIndex = index;
+        document.querySelectorAll('.option').forEach((opt, i) => opt.classList.toggle('selected', i === index));
+        document.getElementById('check-answer-btn').disabled = false;
+    }
+
+    function checkAnswer() {
+        const question = originalQuizData[currentQuestionIndex];
+        const isCorrect = selectedOptionIndex === question.correctAnswerIndex;
+        userAnswers[currentQuestionIndex] = { selected: selectedOptionIndex, isCorrect: isCorrect, status: 'answered' };
+        
+        const currentLang = elements.languageSelect.value;
+        const translatedQuiz = translationCache[currentLang];
+        if (currentLang !== 'en' && translatedQuiz) {
+             updateQuestionUI(translatedQuiz[currentQuestionIndex]);
+        } else {
+            updateQuestionUI(originalQuizData[currentQuestionIndex]);
+        }
+        updateOptionsAndExplanationState();
+        updateQuizActions();
+    }
+
+    // --- BATCH TRANSLATION LOGIC ---
+    async function handleLanguageChange() {
+        const langCode = elements.languageSelect.value;
+
+        if (langCode === 'en') {
+            updateQuestionUI(originalQuizData[currentQuestionIndex]);
+            updateOptionsAndExplanationState();
+            return;
+        }
+
+        // If the entire quiz for this language is already cached, just use it.
+        if (translationCache[langCode]) {
+            const translatedQuiz = translationCache[langCode];
+            updateQuestionUI(translatedQuiz[currentQuestionIndex]);
+            updateOptionsAndExplanationState();
+            return;
+        }
+
+        // --- Perform BATCH Translation for the entire quiz ---
+        elements.translateBtn.classList.add('loading');
+        try {
+            const langName = elements.languageSelect.options[elements.languageSelect.selectedIndex].text;
+            
+            // 1. Gather all text from the entire quiz
+            const textsToTranslate = [];
+            const questionChunkSizes = []; // To know how to reconstruct the quiz later
+            originalQuizData.forEach(q => {
+                let chunkSize = 1 + q.options.length + 1; // question + options + explanation
+                textsToTranslate.push(q.question);
+                textsToTranslate.push(...q.options);
+                textsToTranslate.push(q.explanation);
+                if (q.statements && q.statements.length > 0) {
+                    chunkSize += q.statements.length;
+                    textsToTranslate.push(...q.statements);
+                }
+                questionChunkSizes.push(chunkSize);
+            });
+
+            // 2. Build the prompt for the single batch request
+            const prompt = `Translate the following JSON array of strings into ${langName} (${langCode}). Your response MUST be ONLY a valid JSON array containing the translated strings in the exact same order as the input. Do not add any other text, explanations, or markdown formatting.
+            Input:
+            ${JSON.stringify(textsToTranslate, null, 2)}`;
+            
+            const apiKey = elements.apiKeyInput.value.trim();
+            if (!apiKey) throw new Error("API Key is missing.");
+
+            // 3. Make the single, efficient API call
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!response.ok) {
+                // Provide a more specific error message for rate limiting
+                const errorMsg = response.status === 429 
+                    ? `Rate limit exceeded. Please wait a moment and try again.`
+                    : `Translation API failed with status ${response.status}.`;
+                throw new Error(errorMsg);
+            }
+            
+            const data = await response.json();
+            const rawText = data.candidates[0]?.content?.parts[0]?.text || "";
+            const jsonString = rawText.match(/```json\n([\s\S]*?)\n```/)?.[1] || rawText;
+            let translatedTexts = JSON.parse(jsonString);
+
+            if (translatedTexts.length !== textsToTranslate.length) {
+                throw new Error("Translation returned a mismatched number of items.");
+            }
+
+            // 4. Reconstruct the entire quiz from the translated text array
+            const newTranslatedQuiz = [];
+            originalQuizData.forEach((originalQ, i) => {
+                const translatedQ = { ...originalQ }; // Copy non-text properties
+                translatedQ.question = translatedTexts.shift();
+                translatedQ.options = translatedTexts.splice(0, originalQ.options.length);
+                translatedQ.explanation = translatedTexts.shift();
+                if (originalQ.statements && originalQ.statements.length > 0) {
+                     translatedQ.statements = translatedTexts.splice(0, originalQ.statements.length);
+                }
+                newTranslatedQuiz.push(translatedQ);
+            });
+
+            // 5. Cache the entire translated quiz and update the UI
+            translationCache[langCode] = newTranslatedQuiz;
+            updateQuestionUI(newTranslatedQuiz[currentQuestionIndex]);
+            updateOptionsAndExplanationState();
+
+        } catch (error) {
+            console.error("Batch Translation Error:", error);
+            alert(`Failed to translate quiz. Please check your API key and network connection.\nError: ${error.message}`);
+            elements.languageSelect.value = 'en'; // Revert dropdown
+            updateQuestionUI(originalQuizData[currentQuestionIndex]); // Revert UI
+            updateOptionsAndExplanationState();
+        } finally {
+            elements.translateBtn.classList.remove('loading');
+        }
+    }
+
+
+    // --- RESULTS LOGIC ---
+    function showResults() {
+        showScreen('results');
+        clearInterval(timerId);
+        
+        const totalQuestions = originalQuizData.length;
+        const correctCount = userAnswers.filter(ans => ans.isCorrect).length;
+        const incorrectCount = userAnswers.filter(ans => ans.status === 'answered' && !ans.isCorrect).length;
+        const skippedCount = userAnswers.filter(ans => ans.status === 'skipped' || ans.status === 'unseen').length;
+        const percentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+        let remark = percentage >= 90 ? "Excellent!" : percentage >= 75 ? "Great Job!" : percentage >= 50 ? "Good Effort!" : "Needs Improvement";
+
+        const timeDiff = Math.round(((new Date()) - quizStartTime) / 1000);
+        const timeTaken = `${String(Math.floor(timeDiff / 60)).padStart(2, '0')}:${String(timeDiff % 60).padStart(2, '0')}`;
+        
+        elements.scoreSummary.textContent = `You scored ${correctCount} out of ${totalQuestions}!`;
+        elements.quizSummaryDetails.innerHTML = `
+            <div class="summary-item"><span class="summary-label">Performance</span><span class="summary-value remark">${remark}</span></div>
+            <div class="summary-item"><span class="summary-label">Score</span><span class="summary-value">${correctCount} / ${totalQuestions} (${percentage.toFixed(0)}%)</span></div>
+            <div class="summary-item"><span class="summary-label">Correct</span><span class="summary-value" style="color: var(--correct-color);">${correctCount}</span></div>
+            <div class="summary-item"><span class="summary-label">Incorrect</span><span class="summary-value" style="color: var(--incorrect-color);">${incorrectCount}</span></div>
+            <div class="summary-item"><span class="summary-label">Skipped</span><span class="summary-value" style="color: var(--skipped-color);">${skippedCount}</span></div>
+            <div class="summary-item"><span class="summary-label">Time Taken</span><span class="summary-value">${timeTaken}</span></div>
+            <div class="summary-item"><span class="summary-label">Topic</span><span class="summary-value">${originalQuizData[0]?.topic || 'N/A'}</span></div>
+            <div class="summary-item"><span class="summary-label">Difficulty</span><span class="summary-value">${originalQuizData[0]?.difficulty || 'N/A'}</span></div>
+        `;
+        elements.resultsReview.innerHTML = originalQuizData.map((q, i) => {
+            const answer = userAnswers[i];
+            const optionsHtml = q.options.map((opt, oi) => {
+                let classes = 'result-option';
+                if (answer.status === 'answered' && oi === answer.selected) classes += ' user-selected';
+                if (oi === q.correctAnswerIndex) classes += ' correct-answer';
+                return `<li class="${classes}">${opt}</li>`;
+            }).join('');
+
+            return `
+            <div class="result-item">
+                <p class="result-question"><strong>Q${i + 1}:</strong> ${q.question}<span class="bookmark-indicator ${bookmarkedQuestions.has(i) ? 'visible' : ''}">⭐</span></p>
+                ${q.image ? `<img src="${q.image}" style="max-width: 200px; border-radius: 5px; margin-top: 10px;">` : ''}
+                <ul class="result-options-list">${optionsHtml}</ul>
+                <div class="result-explanation"><h5>Explanation</h5><p>${q.explanation}</p></div>
+            </div>`;
+        }).join('');
+    }
+
+    function restartQuiz() {
+        showScreen('welcome');
+        [elements.topicNameInput, elements.subjectNameInput, elements.topicExamInput, elements.contentExamInput, elements.contentTextInput, elements.resultsPageTelegramInput].forEach(el => el.value = '');
+        elements.imagePreviewContainer.innerHTML = '';
+        elements.fileInput.value = null;
+        elements.pdfFileInput.value = null;
+        elements.pdfControlsContainer.classList.add('hidden');
+        elements.pdfStatus.textContent = '';
+        pdfDoc = null;
+        multipleImageData = [];
+        quizStartTime = null;
+    }
+    
+    function generatePDF() {
+        alert("PDF generation for image-based quizzes is not yet supported. Exporting text-based questions in their original language.");
+    }
+    
+    function copyBookmarks() {
+        if (bookmarkedQuestions.size === 0) {
+            alert("No questions have been bookmarked.");
+            return;
+        }
+        let clipboardText = "⭐ Bookmarked Questions & Answers ⭐\n\n";
+        bookmarkedQuestions.forEach(index => {
+            const q = originalQuizData[index];
+            clipboardText += `📌 Q${index + 1}: ${q.question}\n`;
+            if (q.statements?.length > 0) {
+                clipboardText += q.statements.map(s => `  - ${s}`).join('\n') + '\n';
+            }
+            if (q.image) {
+                clipboardText += `(This question was based on an uploaded image.)\n`;
+            }
+            clipboardText += `\nOptions:\n${q.options.map((o, oi) => `  ${String.fromCharCode(65 + oi)}) ${o}`).join('\n')}\n`;
+            clipboardText += `\n✅ Correct Answer: ${String.fromCharCode(65 + q.correctAnswerIndex)}) ${q.options[q.correctAnswerIndex]}\n💡 Explanation: ${q.explanation}\n\n---\n\n`;
+        });
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(clipboardText).then(() => {
+                alert(`${bookmarkedQuestions.size} bookmarked question(s) copied to clipboard!`);
+            }).catch(err => {
+                console.warn("Clipboard API failed, trying fallback. Error:", err);
+                fallbackCopyTextToClipboard(clipboardText);
+            });
+        } else {
+            console.warn("Clipboard API not available, using fallback.");
+            fallbackCopyTextToClipboard(clipboardText);
+        }
+    }
+
+    function fallbackCopyTextToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.top = "-9999px";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                alert(`${bookmarkedQuestions.size} bookmarked question(s) copied to clipboard!`);
+            } else {
+                throw new Error('Copy command was not successful.');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert('Could not copy automatically. Please copy the text from the browser console.');
+            console.log("--- Bookmarked Content ---\n" + text);
+        }
+        document.body.removeChild(textArea);
+    }
+});
+</script>
+
+</body>
+</html>
